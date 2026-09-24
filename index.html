@@ -1,0 +1,1964 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#17212b">
+<title>OldTG</title>
+<link rel="stylesheet" href="tgs.css">
+</head>
+<body class="theme-dark font-medium density-normal">
+
+<div class="auth-screen" id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <img src="img/oldtg.png" alt="OldTG" onerror="this.style.display='none'">
+    </div>
+
+    <h1 class="auth-title" id="auth-title">Вход</h1>
+    <p class="auth-sub" id="auth-sub">Введите логин и пароль</p>
+
+    <div id="fields-login">
+      <div class="auth-field">
+        <input type="text" id="in-login" placeholder="Логин" autocomplete="username" spellcheck="false" autocapitalize="off">
+      </div>
+      <div class="auth-field">
+        <input type="password" id="in-pass" placeholder="Пароль" autocomplete="current-password">
+      </div>
+    </div>
+
+    <div id="fields-register" style="display:none">
+      <div class="auth-field">
+        <input type="text" id="reg-login" placeholder="Логин (для входа)" autocomplete="username" spellcheck="false" autocapitalize="off">
+      </div>
+      <div class="auth-field">
+        <input type="text" id="reg-username" placeholder="@username (для поиска)" spellcheck="false" autocapitalize="off">
+        <div class="field-hint">Латиница, цифры, подчёркивание.</div>
+      </div>
+      <div class="auth-field">
+        <input type="text" id="reg-name" placeholder="Имя" spellcheck="false" autocapitalize="words">
+      </div>
+      <div class="auth-field">
+        <input type="password" id="reg-pass" placeholder="Пароль" autocomplete="new-password">
+      </div>
+      <div class="auth-field">
+        <input type="password" id="reg-pass2" placeholder="Повторите пароль" autocomplete="new-password">
+      </div>
+    </div>
+
+    <button class="auth-btn" id="auth-submit">Войти</button>
+    <div class="auth-error" id="auth-error"></div>
+
+    <div class="auth-switch" id="auth-switch">Нет аккаунта? Зарегистрироваться</div>
+  </div>
+</div>
+
+<div class="app" id="app">
+  <div class="top-bar">
+    <div class="menu-btn" id="menu-btn"><span></span><span></span><span></span></div>
+    <div class="app-name">
+      <img src="img/oldtg.png" alt="" onerror="this.style.display='none'">
+      OldTG
+    </div>
+    <div class="user" id="user-area">
+      <span class="uname" id="user-name"></span>
+      <img id="user-ava" src="" alt="">
+    </div>
+  </div>
+
+  <div class="main-block">
+    <div class="left-col" id="left-col">
+      <div class="left-tabs">
+        <div class="tab is-active" data-tab="chats">Чаты</div>
+        <div class="tab" data-tab="people">Люди</div>
+        <div class="tab" data-tab="channels">Каналы</div>
+      </div>
+
+      <div class="left-content" id="tab-chats">
+        <div class="search-wrap">
+          <input id="chat-search" placeholder="Поиск чатов...">
+        </div>
+        <div class="list-scroll" id="chat-list"></div>
+      </div>
+
+      <div class="left-content is-hidden" id="tab-people">
+        <div class="search-wrap">
+          <input id="people-search" placeholder="Поиск по @username или имени...">
+        </div>
+        <div class="list-scroll" id="people-list"></div>
+      </div>
+
+      <div class="left-content is-hidden" id="tab-channels">
+        <div class="search-wrap">
+          <input id="channel-search" placeholder="Поиск каналов...">
+        </div>
+        <div class="list-scroll" id="channel-list"></div>
+        <div style="padding:10px;">
+          <button class="auth-btn" id="create-channel-btn" style="margin:0;">Создать канал</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="right-col" id="right-col">
+      <div class="conv-top" id="conv-top">
+        <span class="empty-text">Выберите чат, чтобы начать переписку</span>
+      </div>
+      <div class="msgs" id="msgs">
+        <div class="msgs-empty">
+          <div class="big-icon">
+            <img src="img/oldtg.png" alt="" onerror="this.style.display='none'">
+          </div>
+          <div class="big-text">OldTG</div>
+        </div>
+      </div>
+      <div class="input-row is-hidden" id="input-row">
+        <textarea id="msg-input" placeholder="Написать сообщение..." rows="1"></textarea>
+        <button class="send-btn" id="send-btn" aria-label="Отправить"></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/channels.js"></script>
+<script>
+var CFG = window.OLDTG_CONFIG;
+var API_ACC = CFG.acc;
+var API_MSG = CFG.msg;
+var API_BOT = CFG.bot;
+var POLL_MS = CFG.poll;
+var DEFAULT_AVATAR = CFG.defaultAvatar;
+var APP_VERSION = CFG.version;
+var APP_AUTHOR = CFG.author;
+var BOT_ID = CFG.botId;
+var BOT_TOPIC = 'bot_oldtgs';
+
+var DEFAULT_SETTINGS = {
+  theme: 'dark',
+  fontSize: 'medium',
+  density: 'normal',
+  chatBg: true,
+  enterToSend: true,
+  showUnreadBadge: true,
+  notificationsSound: false,
+  autoScroll: true,
+  showTimestamps: true
+};
+
+var Settings = (function () {
+  var saved = null;
+  try { saved = localStorage.getItem('oldtg_settings'); } catch (e) {}
+  var base = saved ? JSON.parse(saved) : {};
+  var merged = {};
+  for (var k in DEFAULT_SETTINGS) merged[k] = base[k] !== undefined ? base[k] : DEFAULT_SETTINGS[k];
+  return {
+    get: function (k) { return merged[k]; },
+    set: function (k, v) {
+      merged[k] = v;
+      try { localStorage.setItem('oldtg_settings', JSON.stringify(merged)); } catch (e) {}
+      applySettings();
+    },
+    all: function () { return merged; },
+    reset: function () {
+      merged = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+      try { localStorage.setItem('oldtg_settings', JSON.stringify(merged)); } catch (e) {}
+      applySettings();
+    }
+  };
+})();
+
+function applySettings() {
+  document.body.className = '';
+  document.body.classList.add('theme-' + Settings.get('theme'));
+  document.body.classList.add('font-' + Settings.get('fontSize'));
+  document.body.classList.add('density-' + Settings.get('density'));
+
+  if (Settings.get('chatBg')) {
+    document.documentElement.style.setProperty('--chat-bg-image', "url('img/chat.jpg')");
+  } else {
+    document.documentElement.style.setProperty('--chat-bg-image', 'none');
+  }
+
+  var msgs = document.getElementById('msgs');
+  if (msgs) {
+    if (Settings.get('chatBg')) msgs.classList.remove('no-bg');
+    else msgs.classList.add('no-bg');
+  }
+
+  var themeColor = document.querySelector('meta[name="theme-color"]');
+  if (themeColor) {
+    var colors = { dark: '#17212b', light: '#ffffff', blue: '#253442' };
+    themeColor.setAttribute('content', colors[Settings.get('theme')] || '#17212b');
+  }
+}
+
+var S = {
+  me: null,
+  allUsers: [],
+  chats: [],
+  channels: [],
+  activeChat: null,
+  activeChannel: null,
+  pollTimer: null,
+  authMode: 'login',
+  tab: 'chats',
+  lastIds: {},
+  unread: {},
+  isMobile: false,
+  chatsSig: '',
+  msgsSig: '',
+  peopleSig: '',
+  channelsSig: '',
+  channelPostsSig: ''
+};
+
+function $(id) { return document.getElementById(id); }
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function fmtTime(iso) {
+  var d = new Date(iso);
+  if (isNaN(d)) return '';
+  return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+
+function fmtDateShort(iso) {
+  var d = new Date(iso);
+  if (isNaN(d)) return '';
+  var today = new Date();
+  if (d.toDateString() === today.toDateString()) return fmtTime(iso);
+  var m = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+  return d.getDate() + ' ' + m[d.getMonth()];
+}
+
+function fmtLastSeen(iso) {
+  var d = new Date(iso);
+  if (isNaN(d)) return 'был(а) недавно';
+  var diff = (Date.now() - d.getTime()) / 1000;
+  if (diff < 60) return 'был(а) только что';
+  if (diff < 3600) return 'был(а) ' + Math.floor(diff / 60) + ' мин назад';
+  if (diff < 86400) return 'был(а) ' + Math.floor(diff / 3600) + ' ч назад';
+  return 'был(а) ' + fmtDateShort(iso);
+}
+
+function avatarOf(u) {
+  if (u && u.avatar && u.avatar.length > 5) return u.avatar;
+  return DEFAULT_AVATAR;
+}
+
+function normalizeUsername(s) {
+  return String(s || '').trim().replace(/^@+/, '').toLowerCase();
+}
+
+function defaultUsername(login) {
+  return String(login || '').toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 20);
+}
+
+function apiGet(url) {
+  return fetch(url, { cache: 'no-store' }).then(function (r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  });
+}
+
+function apiPost(url, data) {
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  }).then(function (r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  });
+}
+
+function apiPut(url, data) {
+  return fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  }).then(function (r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  });
+}
+
+function checkMobile() {
+  S.isMobile = window.innerWidth <= 768;
+}
+
+window.addEventListener('resize', function () {
+  checkMobile();
+  if (!S.isMobile) {
+    $('left-col').classList.remove('is-hidden');
+    $('right-col').classList.remove('is-hidden');
+  } else {
+    if (!S.activeChat && !S.activeChannel) {
+      $('left-col').classList.remove('is-hidden');
+      $('right-col').classList.add('is-hidden');
+    }
+  }
+  S.chatsSig = '';
+  S.msgsSig = '';
+  S.peopleSig = '';
+  S.channelsSig = '';
+  if (S.me) {
+    renderChats();
+    if (S.tab === 'people') renderPeople();
+    if (S.tab === 'channels') renderChannels();
+    if (S.activeChat) renderMessages();
+  }
+});
+
+$('auth-switch').onclick = function () {
+  if (S.authMode === 'login') {
+    S.authMode = 'register';
+    $('auth-title').textContent = 'Регистрация';
+    $('auth-sub').textContent = 'Создайте аккаунт OldTG';
+    $('fields-login').style.display = 'none';
+    $('fields-register').style.display = 'block';
+    $('auth-submit').textContent = 'Зарегистрироваться';
+    $('auth-switch').textContent = 'Уже есть аккаунт? Войти';
+    $('auth-error').textContent = '';
+  } else {
+    S.authMode = 'login';
+    $('auth-title').textContent = 'Вход';
+    $('auth-sub').textContent = 'Введите логин и пароль';
+    $('fields-login').style.display = 'block';
+    $('fields-register').style.display = 'none';
+    $('auth-submit').textContent = 'Войти';
+    $('auth-switch').textContent = 'Нет аккаунта? Зарегистрироваться';
+    $('auth-error').textContent = '';
+  }
+};
+
+$('auth-submit').onclick = function () {
+  if (S.authMode === 'login') doLogin();
+  else doRegister();
+};
+
+['in-login','in-pass','reg-login','reg-username','reg-name','reg-pass','reg-pass2'].forEach(function (id) {
+  $(id).addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      if (S.authMode === 'login') doLogin();
+      else doRegister();
+    }
+  });
+});
+
+function showAuthError(msg) { $('auth-error').textContent = msg; }
+
+function setAuthLoading(loading) {
+  var btn = $('auth-submit');
+  btn.disabled = loading;
+  if (loading) btn.textContent = S.authMode === 'login' ? 'Вход...' : 'Регистрация...';
+  else btn.textContent = S.authMode === 'login' ? 'Войти' : 'Зарегистрироваться';
+}
+
+function doLogin() {
+  var login = $('in-login').value.trim();
+  var pass = $('in-pass').value;
+  showAuthError('');
+  if (!login) { showAuthError('Введите логин'); return; }
+  if (!pass) { showAuthError('Введите пароль'); return; }
+  setAuthLoading(true);
+
+  apiGet(API_ACC).then(function (users) {
+    S.allUsers = Array.isArray(users) ? users : [];
+    var found = S.allUsers.find(function (u) {
+      if (u.login !== login) return false;
+      try { return atob(u.password) === pass; }
+      catch (e) { return u.password === pass; }
+    });
+    if (!found) { showAuthError('Неверный логин или пароль'); setAuthLoading(false); return; }
+    if (!found.username) found.username = defaultUsername(found.login);
+
+    S.me = {
+      id: String(found.id),
+      name: found.name || found.login,
+      login: found.login,
+      username: found.username,
+      avatar: avatarOf(found),
+      createdAt: found.createdAt || new Date().toISOString()
+    };
+    try { localStorage.setItem('oldtg_user', JSON.stringify(S.me)); } catch (e) {}
+    startApp();
+  }).catch(function (e) {
+    showAuthError('Ошибка: ' + e.message);
+    setAuthLoading(false);
+  });
+}
+
+function doRegister() {
+  var login = $('reg-login').value.trim();
+  var username = normalizeUsername($('reg-username').value);
+  var name = $('reg-name').value.trim();
+  var pass = $('reg-pass').value;
+  var pass2 = $('reg-pass2').value;
+
+  showAuthError('');
+  if (!login) { showAuthError('Введите логин'); return; }
+  if (!username) { showAuthError('Введите @username'); return; }
+  if (!/^[a-z0-9_]{3,20}$/.test(username)) {
+    showAuthError('Username: 3-20 символов, латиница, цифры, _');
+    return;
+  }
+  if (!name) { showAuthError('Введите имя'); return; }
+  if (!pass) { showAuthError('Введите пароль'); return; }
+  if (pass !== pass2) { showAuthError('Пароли не совпадают'); return; }
+
+  setAuthLoading(true);
+
+  apiGet(API_ACC).then(function (users) {
+    S.allUsers = Array.isArray(users) ? users : [];
+    if (S.allUsers.find(function (u) { return u.login === login; })) {
+      showAuthError('Логин уже занят');
+      setAuthLoading(false);
+      return;
+    }
+    if (S.allUsers.find(function (u) { return normalizeUsername(u.username) === username; })) {
+      showAuthError('Username @' + username + ' уже занят');
+      setAuthLoading(false);
+      return;
+    }
+
+    var newUser = {
+      login: login,
+      username: username,
+      name: name,
+      password: btoa(pass),
+      avatar: DEFAULT_AVATAR,
+      createdAt: new Date().toISOString()
+    };
+    return apiPost(API_ACC, newUser);
+  }).then(function (created) {
+    if (!created) return;
+    S.me = {
+      id: String(created.id),
+      name: created.name || created.login,
+      login: created.login,
+      username: created.username,
+      avatar: created.avatar || DEFAULT_AVATAR,
+      createdAt: created.createdAt || new Date().toISOString()
+    };
+    try { localStorage.setItem('oldtg_user', JSON.stringify(S.me)); } catch (e) {}
+    startApp();
+  }).catch(function (e) {
+    showAuthError('Ошибка: ' + e.message);
+    setAuthLoading(false);
+  });
+}
+
+(function () {
+  var saved = null;
+  try { saved = localStorage.getItem('oldtg_user'); } catch (e) {}
+  if (!saved) return;
+  try {
+    S.me = JSON.parse(saved);
+    apiGet(API_ACC).then(function (users) {
+      S.allUsers = Array.isArray(users) ? users : [];
+      var fresh = S.allUsers.find(function (u) { return String(u.id) === String(S.me.id); });
+      if (fresh) {
+        S.me.name = fresh.name || S.me.name;
+        S.me.username = fresh.username || S.me.username;
+        S.me.avatar = avatarOf(fresh);
+        S.me.createdAt = fresh.createdAt || S.me.createdAt;
+        try { localStorage.setItem('oldtg_user', JSON.stringify(S.me)); } catch (e) {}
+      }
+      startApp();
+    }).catch(function () {
+      startApp();
+    });
+  } catch (e) {}
+})();
+
+function startApp() {
+  applySettings();
+  checkMobile();
+  $('auth-screen').style.display = 'none';
+  $('app').classList.add('is-on');
+  refreshTopBar();
+  loadChats();
+  loadBot();
+  loadChannels();
+  renderPeople();
+  startPolling();
+
+  if (S.isMobile) {
+    $('right-col').classList.add('is-hidden');
+  }
+
+  handleDeepLink();
+}
+
+
+function handleDeepLink() {
+  var hash = location.hash || '';
+  if (!hash || hash.length < 2) return;
+
+
+  var raw = hash.slice(1).replace(/^\/+/, '');
+
+  raw = raw.replace(/^@/, '');
+
+  var m = raw.match(/^([a-zA-Z0-9_]+)$/);
+  if (!m) return;
+  var uname = m[1].toLowerCase();
+
+  var tryOpen = function (attempt) {
+    if (attempt > 25) return;
+
+    
+    var ch = S.channels.find(function (c) {
+      return String(c.username || '').toLowerCase() === uname;
+    });
+    if (ch) {
+      var chTab = document.querySelector('.left-tabs .tab[data-tab="channels"]');
+      if (chTab) chTab.click();
+      openChannel(ch.id);
+      return;
+    }
+
+    var u = S.allUsers.find(function (x) {
+      return normalizeUsername(x.username) === uname;
+    });
+    if (u && String(u.id) !== String(S.me.id)) {
+      startDirectChat(u.id);
+      return;
+    }
+
+    
+    setTimeout(function () { tryOpen(attempt + 1); }, 150);
+  };
+
+  tryOpen(0);
+}
+
+function startPolling() {
+  if (S.pollTimer) clearInterval(S.pollTimer);
+  S.pollTimer = setInterval(function () {
+    if (document.hidden) return;
+    loadChats(true);
+    loadUsers(true);
+    loadBot();
+    loadChannels();
+  }, POLL_MS);
+}
+
+function loadUsers(silent) {
+  apiGet(API_ACC).then(function (users) {
+    var arr = Array.isArray(users) ? users : [];
+    if (arr.length !== S.allUsers.length) {
+      S.allUsers = arr;
+      S.peopleSig = '';
+      if (S.tab === 'people') renderPeople();
+      S.chats.forEach(function (c) {
+        if (c.peer) {
+          var fresh = arr.find(function (u) { return String(u.id) === String(c.peer.id); });
+          if (fresh) c.peer = fresh;
+        }
+      });
+    }
+  }).catch(function () {});
+}
+
+function loadBot() {
+  apiGet(API_BOT).then(function (msgs) {
+    var arr = Array.isArray(msgs) ? msgs : [];
+    var botMsgs = arr.filter(function (m) { return m.isBot || m.author === 'OldTG' || m.topicId === BOT_TOPIC; });
+    S.botMessages = botMsgs;
+
+    var chat = S.chats.find(function (c) { return c.id === BOT_TOPIC; });
+    if (!chat) {
+      chat = {
+        id: BOT_TOPIC,
+        title: 'OldTG',
+        peer: {
+          id: BOT_ID,
+          name: 'OldTG',
+          login: 'OldTG',
+          username: 'oldtgs',
+          avatar: 'img/oldtg.png',
+          createdAt: new Date().toISOString()
+        },
+        messages: [],
+        last: null,
+        isBot: true,
+        participants: new Set(['OldTG'])
+      };
+      S.chats.unshift(chat);
+    }
+
+    chat.messages = botMsgs.map(function (m) {
+      return {
+        id: m.id,
+        name: m.name || 'OldTG',
+        avatar: m.avatar || 'img/oldtg.png',
+        author: m.author || 'OldTG',
+        body: m.body,
+        topicId: BOT_TOPIC,
+        userId: BOT_ID,
+        createdAt: m.createdAt,
+        isBot: true
+      };
+    }).sort(function (a, b) {
+      return new Date(a.createdAt) - new Date(b.createdAt);
+    });
+
+    chat.last = chat.messages.length ? chat.messages[chat.messages.length - 1] : null;
+    chat.title = 'OldTG';
+
+    S.chatsSig = '';
+    S.msgsSig = '';
+    renderChats();
+
+    if (S.activeChat && S.activeChat.id === BOT_TOPIC) {
+      var fresh = S.chats.find(function (c) { return c.id === BOT_TOPIC; });
+      if (fresh) {
+        S.activeChat = fresh;
+        renderMessages();
+      }
+    }
+  }).catch(function () {});
+}
+
+function loadChannels() {
+  if (!window.Channels) return;
+  window.Channels.all.then(function (list) {
+    S.channels = Array.isArray(list) ? list : [];
+    S.channelsSig = '';
+    if (S.tab === 'channels') renderChannels();
+  }).catch(function () {});
+}
+
+function refreshTopBar() {
+  $('user-name').textContent = S.me.name;
+  $('user-ava').src = S.me.avatar;
+}
+
+$('user-area').onclick = openProfileCard;
+
+function logout() {
+  try { localStorage.removeItem('oldtg_user'); } catch (e) {}
+  if (S.pollTimer) clearInterval(S.pollTimer);
+  location.reload();
+}
+
+document.querySelectorAll('.left-tabs .tab').forEach(function (tab) {
+  tab.onclick = function () {
+    document.querySelectorAll('.left-tabs .tab').forEach(function (t) { t.classList.remove('is-active'); });
+    tab.classList.add('is-active');
+    S.tab = tab.dataset.tab;
+    $('tab-chats').classList.toggle('is-hidden', S.tab !== 'chats');
+    $('tab-people').classList.toggle('is-hidden', S.tab !== 'people');
+    $('tab-channels').classList.toggle('is-hidden', S.tab !== 'channels');
+    if (S.tab === 'people') {
+      S.peopleSig = '';
+      renderPeople();
+    } else if (S.tab === 'channels') {
+      S.channelsSig = '';
+      renderChannels();
+    }
+  };
+});
+
+function chatKeyOf(msg) {
+  return String(msg.topicId != null ? msg.topicId : '0');
+}
+
+function makeTopicId(idA, idB) {
+  var a = String(idA), b = String(idB);
+  return a < b ? 'dm_' + a + '_' + b : 'dm_' + b + '_' + a;
+}
+
+function buildChats(messages) {
+  var map = new Map();
+
+  messages.forEach(function (m) {
+    var key = chatKeyOf(m);
+    if (!map.has(key)) {
+      map.set(key, {
+        id: key,
+        title: m.title || 'Чат',
+        messages: [],
+        participants: new Set()
+      });
+    }
+    var chat = map.get(key);
+    chat.messages.push(m);
+    if (m.author) chat.participants.add(m.author);
+    if (m.userId) chat.participants.add(String(m.userId));
+  });
+
+  var chats = [];
+  map.forEach(function (chat) {
+    chat.messages.sort(function (a, b) {
+      return new Date(a.createdAt) - new Date(b.createdAt);
+    });
+    var last = chat.messages[chat.messages.length - 1];
+
+    var peer = null;
+    chat.messages.forEach(function (m) {
+      if (m.author && m.author !== S.me.login) {
+        var u = S.allUsers.find(function (x) { return x.login === m.author; });
+        if (u && !peer) peer = u;
+      }
+    });
+    if (!peer && chat.id.indexOf('dm_') === 0) {
+      var parts = chat.id.split('_');
+      var myId = String(S.me.id);
+      var otherId = parts[1] === myId ? parts[2] : parts[1];
+      peer = S.allUsers.find(function (x) { return String(x.id) === String(otherId); }) || peer;
+    }
+
+    chat.peer = peer;
+    chat.last = last;
+    chat.title = peer ? (peer.name || peer.login) : chat.title;
+    chats.push(chat);
+  });
+
+  chats.sort(function (a, b) {
+    return new Date(b.last.createdAt) - new Date(a.last.createdAt);
+  });
+  return chats;
+}
+
+function loadChats(silent) {
+  if (!silent && !S.chats.length) {
+    $('chat-list').innerHTML = '<div class="loading-text">Загрузка чатов...</div>';
+  }
+
+  apiGet(API_MSG).then(function (msgs) {
+    var arr = Array.isArray(msgs) ? msgs : [];
+    var myId = String(S.me.id);
+
+    var mine = arr.filter(function (m) {
+      if (m.author === S.me.login) return true;
+      if (String(m.userId) === myId) return true;
+      var tid = String(m.topicId || '');
+      if (tid.indexOf('dm_') === 0) {
+        var parts = tid.split('_');
+        if (parts[1] === myId || parts[2] === myId) return true;
+      }
+      return false;
+    });
+
+    var humanChats = buildChats(mine);
+
+    var botChat = S.chats.find(function (c) { return c.id === BOT_TOPIC; });
+    if (botChat) humanChats.unshift(botChat);
+
+    S.chats = humanChats;
+
+    S.chats.forEach(function (c) {
+      if (c.isBot) return;
+      var lastId = c.last ? String(c.last.id) : null;
+      var prevId = S.lastIds[c.id];
+      var lastFromMe = c.last && c.last.author === S.me.login;
+      if (lastId && lastId !== prevId) {
+        if (!lastFromMe) {
+          S.unread[c.id] = (S.unread[c.id] || 0) + 1;
+          if (Settings.get('notificationsSound')) playNotification();
+        }
+        S.lastIds[c.id] = lastId;
+      }
+    });
+
+    if (S.activeChat) {
+      S.unread[S.activeChat.id] = 0;
+      var fresh = S.chats.find(function (c) { return c.id === S.activeChat.id; });
+      if (fresh) {
+        S.activeChat = fresh;
+        renderMessages();
+        renderConvTop();
+      }
+    }
+
+    renderChats();
+  }).catch(function (e) {
+    if (!silent) {
+      $('chat-list').innerHTML = '<div class="loading-text">Ошибка: ' + esc(e.message) + '</div>';
+    }
+  });
+}
+
+function renderChats() {
+  var q = ($('chat-search').value || '').toLowerCase();
+  var list = $('chat-list');
+
+  var filtered = S.chats.filter(function (c) {
+    if (!q) return true;
+    var t = c.title.toLowerCase();
+    var p = c.peer && c.peer.username ? ('@' + c.peer.username).toLowerCase() : '';
+    return t.indexOf(q) >= 0 || p.indexOf(q) >= 0;
+  });
+
+  var sig = filtered.map(function (c) {
+    return c.id + '|' + (c.last ? c.last.id : '') + '|' + (c.last ? c.last.body : '') + '|' + (S.unread[c.id] || 0) + '|' + (S.activeChat && S.activeChat.id === c.id ? '1' : '0');
+  }).join(';');
+
+  if (sig === S.chatsSig) return;
+  S.chatsSig = sig;
+
+  if (!filtered.length) {
+    list.innerHTML = '<div class="loading-text">' +
+      (S.chats.length ? 'Ничего не найдено' : 'Нет чатов. Найдите человека во вкладке Люди.') +
+      '</div>';
+    return;
+  }
+
+  var html = '';
+  for (var i = 0; i < filtered.length; i++) {
+    var c = filtered[i];
+    var ava = c.peer ? avatarOf(c.peer) : DEFAULT_AVATAR;
+    var lastText = c.last ? (c.last.body || '') : '';
+    var prefix = (c.last && c.last.author === S.me.login) ? 'Вы: ' : '';
+    var unread = S.unread[c.id] || 0;
+    var unreadBadge = (Settings.get('showUnreadBadge') && unread > 0)
+      ? '<span class="unread-badge">' + unread + '</span>'
+      : '';
+    var activeCls = (S.activeChat && S.activeChat.id === c.id) ? ' is-active' : '';
+    html += '<div class="chat-row' + activeCls + '" data-id="' + esc(c.id) + '">' +
+      '<img src="' + esc(ava) + '" alt="">' +
+      '<div class="cr-body">' +
+        '<div class="cr-top">' +
+          '<span class="cr-name">' + esc(c.title) + '</span>' +
+          '<span class="cr-time">' + fmtDateShort(c.last ? c.last.createdAt : '') + '</span>' +
+        '</div>' +
+        '<div class="cr-msg">' + esc(prefix + lastText) + '</div>' +
+      '</div>' +
+      unreadBadge +
+    '</div>';
+  }
+  list.innerHTML = html;
+
+  list.querySelectorAll('.chat-row').forEach(function (el) {
+    el.onclick = function () { openChat(el.dataset.id); };
+  });
+}
+
+$('chat-search').oninput = function () { S.chatsSig = ''; renderChats(); };
+
+function renderPeople() {
+  var q = normalizeUsername($('people-search').value);
+  var qRaw = ($('people-search').value || '').toLowerCase().trim();
+  var list = $('people-list');
+
+  var others = S.allUsers.filter(function (u) {
+    return String(u.id) !== String(S.me.id);
+  });
+
+  var filtered = others.filter(function (u) {
+    if (!q && !qRaw) return true;
+    var uname = normalizeUsername(u.username);
+    var nm = (u.name || '').toLowerCase();
+    if (q && uname.indexOf(q) >= 0) return true;
+    if (nm.indexOf(qRaw) >= 0) return true;
+    return false;
+  });
+
+  var sig = filtered.map(function (u) {
+    return u.id + '|' + u.name + '|' + u.username + '|' + u.avatar;
+  }).join(';');
+
+  if (sig === S.peopleSig) return;
+  S.peopleSig = sig;
+
+  if (!filtered.length) {
+    list.innerHTML = '<div class="loading-text">Никого не найдено</div>';
+    return;
+  }
+
+  var html = '';
+  for (var i = 0; i < filtered.length; i++) {
+    var u = filtered[i];
+    var uname = u.username || defaultUsername(u.login);
+    html += '<div class="user-row" data-id="' + esc(u.id) + '">' +
+      '<img src="' + esc(avatarOf(u)) + '" alt="">' +
+      '<div class="ur-body">' +
+        '<div class="ur-name">' + esc(u.name || u.login) + '</div>' +
+        '<div class="ur-login">@' + esc(uname) + '</div>' +
+      '</div>' +
+      '<div class="ur-action">Написать</div>' +
+    '</div>';
+  }
+  list.innerHTML = html;
+
+  list.querySelectorAll('.user-row').forEach(function (el) {
+    el.onclick = function () { startDirectChat(el.dataset.id); };
+  });
+}
+
+$('people-search').oninput = function () { S.peopleSig = ''; renderPeople(); };
+
+function renderChannels() {
+  var q = ($('channel-search').value || '').toLowerCase();
+  var list = $('channel-list');
+
+  var filtered = S.channels.filter(function (c) {
+    if (!q) return true;
+    var t = (c.title || '').toLowerCase();
+    var u = (c.username || '').toLowerCase();
+    return t.indexOf(q) >= 0 || u.indexOf(q) >= 0;
+  });
+
+  var sig = filtered.map(function (c) {
+    return c.id + '|' + c.title + '|' + c.username + '|' + c.avatar + '|' + c.subscribers;
+  }).join(';');
+
+  if (sig === S.channelsSig) return;
+  S.channelsSig = sig;
+
+  if (!filtered.length) {
+    list.innerHTML = '<div class="loading-text">Каналов нет. Создайте первый!</div>';
+    return;
+  }
+
+  var html = '';
+  for (var i = 0; i < filtered.length; i++) {
+    var c = filtered[i];
+    var subs = String(c.subscribers || '').split(',').filter(function (x) { return x; }).length;
+    var isOwner = String(c.ownerId) === String(S.me.id);
+    var isSub = window.Channels.isSubscribed(c, S.me.id);
+    var badge = isOwner ? '<span class="unread-badge" style="background:#16c60c;">OWN</span>' :
+                isSub ? '<span class="unread-badge" style="background:#5288c1;">SUB</span>' : '';
+    html += '<div class="chat-row" data-id="' + esc(c.id) + '">' +
+      '<img src="' + esc(c.avatar || DEFAULT_AVATAR) + '" alt="">' +
+      '<div class="cr-body">' +
+        '<div class="cr-top">' +
+          '<span class="cr-name">' + esc(c.title) + '</span>' +
+          '<span class="cr-time">' + subs + ' подп.</span>' +
+        '</div>' +
+        '<div class="cr-msg">@' + esc(c.username) + '</div>' +
+      '</div>' +
+      badge +
+    '</div>';
+  }
+  list.innerHTML = html;
+
+  list.querySelectorAll('.chat-row').forEach(function (el) {
+    el.onclick = function () { openChannel(el.dataset.id); };
+  });
+}
+
+$('channel-search').oninput = function () { S.channelsSig = ''; renderChannels(); };
+
+$('create-channel-btn').onclick = function () {
+  openCreateChannelModal();
+};
+
+function openCreateChannelModal() {
+  var myChannels = S.channels.filter(function (c) { return String(c.ownerId) === String(S.me.id); });
+  if (myChannels.length >= 3) {
+    alert('Можно создать не больше 3 каналов');
+    return;
+  }
+
+  var bg = document.createElement('div');
+  bg.className = 'modal-bg';
+  bg.innerHTML =
+    '<div class="modal-box">' +
+      '<h2>Создать канал</h2>' +
+      '<div class="form-field"><label>Название канала</label><input id="cc-title" placeholder="Мой канал"></div>' +
+      '<div class="form-field"><label>Username (латиница)</label><input id="cc-uname" placeholder="my_channel"></div>' +
+      '<div class="form-field"><label>Ссылка на аватарку</label><input id="cc-ava" value="' + DEFAULT_AVATAR + '"></div>' +
+      '<div class="form-error" id="cc-err"></div>' +
+      '<div class="modal-row">' +
+        '<button class="ghost" id="cc-cancel">Отмена</button>' +
+        '<button class="primary" id="cc-create">Создать</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(bg);
+
+  bg.querySelector('#cc-cancel').onclick = function () { bg.remove(); };
+  bg.onclick = function (e) { if (e.target === bg) bg.remove(); };
+
+  bg.querySelector('#cc-create').onclick = function () {
+    var title = bg.querySelector('#cc-title').value.trim();
+    var uname = normalizeUsername(bg.querySelector('#cc-uname').value);
+    var ava = bg.querySelector('#cc-ava').value.trim() || DEFAULT_AVATAR;
+    var err = bg.querySelector('#cc-err');
+
+    err.textContent = '';
+    if (!title) { err.textContent = 'Введите название'; return; }
+    if (!/^[a-z0-9_]{3,20}$/.test(uname)) { err.textContent = 'Username: 3-20, латиница, цифры, _'; return; }
+    if (uname.indexOf('_sub') >= 0) { err.textContent = 'Слово _sub зарезервировано'; return; }
+
+    var finalUname = uname + '_sub';
+    var taken = S.channels.find(function (c) { return c.username === finalUname; });
+    if (taken) { err.textContent = 'Username занят'; return; }
+
+    var btn = bg.querySelector('#cc-create');
+    btn.disabled = true;
+    btn.textContent = 'СОЗДАНИЕ...';
+
+    window.Channels.create(S.me.id, S.me.login, S.me.name, title, finalUname, ava).then(function () {
+      bg.remove();
+      loadChannels();
+    }).catch(function (e) {
+      btn.disabled = false;
+      btn.textContent = 'Создать';
+      err.textContent = 'Ошибка: ' + e.message;
+    });
+  };
+}
+
+function openChannel(channelId) {
+  var ch = S.channels.find(function (c) { return String(c.id) === String(channelId); });
+  if (!ch) return;
+  S.activeChannel = ch;
+  S.activeChat = null;
+  S.channelPostsSig = '';
+  renderConvTop();
+  renderChannelPosts();
+  $('input-row').classList.add('is-hidden');
+
+  if (S.isMobile) {
+    $('right-col').classList.remove('is-hidden');
+    $('left-col').classList.add('is-hidden');
+  }
+}
+
+function renderChannelPosts() {
+  var box = $('msgs');
+  var ch = S.activeChannel;
+  if (!ch) return;
+
+  var isOwner = String(ch.ownerId) === String(S.me.id);
+  var isSub = window.Channels.isSubscribed(ch, S.me.id);
+
+  box.innerHTML = '<div class="loading-text">Загрузка постов...</div>';
+
+  window.Channels.posts(ch.id).then(function (posts) {
+    var sig = ch.id + '|' + posts.map(function (p) { return p.id + ':' + p.body; }).join(';');
+    if (sig === S.channelPostsSig) return;
+    S.channelPostsSig = sig;
+
+    var html = '';
+
+    html += '<div class="msgs-empty" style="padding:20px 0;flex:none;">' +
+      '<div style="font-size:16px;color:var(--text-primary);">' + esc(ch.title) + '</div>' +
+      '<div style="font-size:13px;color:var(--text-secondary);">@' + esc(ch.username) + '</div>' +
+      '</div>';
+
+    if (isOwner) {
+      html += '<div style="padding:0 20px 20px;">' +
+        '<textarea id="ch-post-input" placeholder="Новый пост..." style="width:100%;padding:10px;background:var(--bg-input);color:var(--text-primary);border-radius:2px;border:none;min-height:60px;font-family:inherit;font-size:14px;"></textarea>' +
+        '<button id="ch-post-send" style="margin-top:8px;padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:2px;cursor:pointer;font-weight:500;text-transform:uppercase;font-size:13px;">Опубликовать</button>' +
+        '</div>';
+    }
+
+    if (!posts.length) {
+      html += '<div class="msgs-empty"><div class="big-text">Постов пока нет</div></div>';
+    } else {
+      posts.sort(function (a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
+      for (var i = 0; i < posts.length; i++) {
+        var p = posts[i];
+        html += '<div class="msg in" style="max-width:90%;align-self:stretch;margin:0 20px;">' +
+          '<div class="msg-body">' + esc(p.body) + '</div>' +
+          '<div class="msg-time">' + fmtTime(p.createdAt) + '</div>' +
+          '</div>';
+      }
+    }
+
+    html += '<div style="padding:20px;display:flex;gap:10px;flex-wrap:wrap;">';
+
+    if (isSub) {
+      html += '<button id="ch-unsub" style="padding:10px 20px;background:var(--bg-input);color:var(--text-primary);border:none;border-radius:2px;cursor:pointer;">Отписаться</button>';
+    } else {
+      html += '<button id="ch-sub" style="padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:2px;cursor:pointer;">Подписаться</button>';
+    }
+
+    if (isOwner) {
+      html += '<button id="ch-edit" style="padding:10px 20px;background:var(--bg-input);color:var(--text-primary);border:none;border-radius:2px;cursor:pointer;">Настройки канала</button>';
+    }
+
+    html += '</div>';
+
+    box.innerHTML = html;
+
+    var postSend = $('ch-post-send');
+    if (postSend) {
+      postSend.onclick = function () {
+        var input = $('ch-post-input');
+        var body = input.value.trim();
+        if (!body) return;
+        postSend.disabled = true;
+        postSend.textContent = 'ПУБЛИКАЦИЯ...';
+        window.Channels.addPost(ch.id, body).then(function () {
+          S.channelPostsSig = '';
+          renderChannelPosts();
+        }).catch(function (e) {
+          postSend.disabled = false;
+          postSend.textContent = 'Опубликовать';
+          alert('Ошибка: ' + e.message);
+        });
+      };
+    }
+
+    var subBtn = $('ch-sub');
+    if (subBtn) {
+      subBtn.onclick = function () {
+        window.Channels.subscribe(ch, S.me.id).then(function () {
+          S.channelsSig = '';
+          loadChannels();
+          S.channelPostsSig = '';
+          renderChannelPosts();
+        });
+      };
+    }
+
+    var unsubBtn = $('ch-unsub');
+    if (unsubBtn) {
+      unsubBtn.onclick = function () {
+        window.Channels.unsubscribe(ch, S.me.id).then(function () {
+          S.channelsSig = '';
+          loadChannels();
+          S.channelPostsSig = '';
+          renderChannelPosts();
+        });
+      };
+    }
+
+    var editBtn = $('ch-edit');
+    if (editBtn) {
+      editBtn.onclick = function () { openChannelEditModal(ch); };
+    }
+  });
+}
+
+function openChannelEditModal(ch) {
+  var bg = document.createElement('div');
+  bg.className = 'modal-bg';
+  bg.innerHTML =
+    '<div class="modal-box">' +
+      '<h2>Настройки канала</h2>' +
+      '<div class="form-field"><label>Название</label><input id="ce-title" value="' + esc(ch.title) + '"></div>' +
+      '<div class="form-field"><label>Username (без _sub)</label><input id="ce-uname" value="' + esc(ch.username.replace(/_sub$/, '')) + '"></div>' +
+      '<div class="form-field"><label>Аватарка (ссылка)</label><input id="ce-ava" value="' + esc(ch.avatar) + '"></div>' +
+      '<div class="form-error" id="ce-err"></div>' +
+      '<div class="modal-row">' +
+        '<button class="ghost" id="ce-cancel">Отмена</button>' +
+        '<button class="primary" id="ce-save">Сохранить</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(bg);
+
+  bg.querySelector('#ce-cancel').onclick = function () { bg.remove(); };
+  bg.onclick = function (e) { if (e.target === bg) bg.remove(); };
+
+  bg.querySelector('#ce-save').onclick = function () {
+    var title = bg.querySelector('#ce-title').value.trim();
+    var uname = normalizeUsername(bg.querySelector('#ce-uname').value);
+    var ava = bg.querySelector('#ce-ava').value.trim() || ch.avatar;
+    var err = bg.querySelector('#ce-err');
+
+    err.textContent = '';
+    if (!title) { err.textContent = 'Введите название'; return; }
+    if (!/^[a-z0-9_]{3,20}$/.test(uname)) { err.textContent = 'Username: 3-20, латиница, цифры, _'; return; }
+
+    var finalUname = uname + '_sub';
+    var taken = S.channels.find(function (c) {
+      return c.id !== ch.id && c.username === finalUname;
+    });
+    if (taken) { err.textContent = 'Username занят'; return; }
+
+    var btn = bg.querySelector('#ce-save');
+    btn.disabled = true;
+    btn.textContent = 'СОХРАНЕНИЕ...';
+
+    window.Channels.update(ch.id, { title: title, username: finalUname, avatar: ava }).then(function () {
+      bg.remove();
+      S.channelsSig = '';
+      loadChannels().then(function () {
+        var fresh = S.channels.find(function (c) { return String(c.id) === String(ch.id); });
+        if (fresh) { S.activeChannel = fresh; S.channelPostsSig = ''; renderChannelPosts(); renderConvTop(); }
+      });
+    }).catch(function (e) {
+      btn.disabled = false;
+      btn.textContent = 'Сохранить';
+      err.textContent = 'Ошибка: ' + e.message;
+    });
+  };
+}
+
+function startDirectChat(peerId) {
+  var peer = S.allUsers.find(function (u) { return String(u.id) === String(peerId); });
+  if (!peer) return;
+  var topicId = makeTopicId(S.me.id, peer.id);
+
+  var existing = S.chats.find(function (c) { return c.id === topicId; });
+  if (existing) {
+    document.querySelector('.left-tabs .tab[data-tab="chats"]').click();
+    openChat(existing.id);
+    return;
+  }
+
+  var newChat = {
+    id: topicId,
+    title: peer.name || peer.login,
+    peer: peer,
+    messages: [],
+    last: null,
+    participants: new Set([S.me.login, peer.login])
+  };
+  S.chats.unshift(newChat);
+  document.querySelector('.left-tabs .tab[data-tab="chats"]').click();
+  S.chatsSig = '';
+  renderChats();
+  openChat(topicId);
+}
+
+function openChat(id) {
+  var chat = S.chats.find(function (c) { return c.id === String(id); });
+  if (!chat) return;
+  S.activeChat = chat;
+  S.activeChannel = null;
+  S.unread[chat.id] = 0;
+  S.chatsSig = '';
+  S.msgsSig = '';
+  renderChats();
+  renderConvTop();
+  renderMessages();
+  $('input-row').classList.toggle('is-hidden', chat.isBot === true);
+  if (!chat.isBot) $('msg-input').focus();
+
+  if (S.isMobile) {
+    $('right-col').classList.remove('is-hidden');
+    $('left-col').classList.add('is-hidden');
+  }
+}
+
+function closeChatMobile() {
+  if (!S.isMobile) return;
+  $('right-col').classList.add('is-hidden');
+  $('left-col').classList.remove('is-hidden');
+}
+
+function renderConvTop() {
+  var top = $('conv-top');
+
+  if (S.activeChannel) {
+    var ch = S.activeChannel;
+    top.innerHTML =
+      '<div class="conv-back" id="conv-back"></div>' +
+      '<img src="' + esc(ch.avatar || DEFAULT_AVATAR) + '" alt="">' +
+      '<div class="ct-info">' +
+        '<h3>' + esc(ch.title) + '</h3>' +
+        '<p>@' + esc(ch.username) + '</p>' +
+      '</div>' +
+      '<div class="settings-icon" id="chat-settings" title="Настройки"></div>';
+    var b1 = $('conv-back');
+    if (b1) b1.onclick = closeChatMobile;
+    var s1 = $('chat-settings');
+    if (s1) s1.onclick = function (e) { e.stopPropagation(); openSettings(); };
+    return;
+  }
+
+  var c = S.activeChat;
+  if (!c) {
+    top.innerHTML = '<span class="empty-text">Выберите чат, чтобы начать переписку</span>';
+    return;
+  }
+  var peer = c.peer;
+  var ava = peer ? avatarOf(peer) : DEFAULT_AVATAR;
+  var title = peer ? (peer.name || peer.login) : c.title;
+  var uname = peer ? ('@' + (peer.username || defaultUsername(peer.login))) : '';
+  var status = peer ? fmtLastSeen(peer.createdAt) : 'личный чат';
+
+  top.innerHTML =
+    '<div class="conv-back" id="conv-back"></div>' +
+    '<img src="' + esc(ava) + '" alt="" id="conv-ava" style="cursor:pointer">' +
+    '<div class="ct-info" id="conv-info" style="cursor:pointer">' +
+      '<h3>' + esc(title) + '</h3>' +
+      '<p>' + esc(uname ? uname + ' - ' + status : status) + '</p>' +
+    '</div>' +
+    '<div class="settings-icon" id="chat-settings" title="Настройки"></div>';
+
+  var back = $('conv-back');
+  if (back) back.onclick = closeChatMobile;
+
+  var chatSettings = $('chat-settings');
+  if (chatSettings) {
+    chatSettings.onclick = function (e) {
+      e.stopPropagation();
+      openSettings();
+    };
+  }
+
+  var convAva = $('conv-ava');
+  var convInfo = $('conv-info');
+  if (peer && !c.isBot && (convAva || convInfo)) {
+    var openPeer = function (e) {
+      e.stopPropagation();
+      openPeerCard(peer);
+    };
+    if (convAva) convAva.onclick = openPeer;
+    if (convInfo) convInfo.onclick = openPeer;
+  }
+}
+
+function renderMessages() {
+  var box = $('msgs');
+  var c = S.activeChat;
+  if (!c) return;
+
+  var sig = c.id + '|' + c.messages.map(function (m) { return m.id + ':' + m.body; }).join(';') + '|' + (Settings.get('showTimestamps') ? '1' : '0') + '|' + (c.isBot ? 'bot' : '');
+  if (sig === S.msgsSig) return;
+  S.msgsSig = sig;
+
+  if (!c.messages.length) {
+    box.innerHTML = '<div class="msgs-empty">' +
+      '<div class="big-icon"><img src="img/oldtg.png" alt="" onerror="this.style.display=\'none\'"></div>' +
+      '<div class="big-text">' + (c.isBot ? 'OldTG всегда на связи' : 'Начните переписку') + '</div>' +
+    '</div>';
+    return;
+  }
+
+  var wasAtBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+  var showTime = Settings.get('showTimestamps');
+
+  var html = '';
+  for (var i = 0; i < c.messages.length; i++) {
+    var m = c.messages[i];
+    var mine = !c.isBot && m.author === S.me.login;
+    var cls = mine ? 'out' : 'in';
+    var showAuthor = (!mine && m.name) ? '<div class="msg-author">' + esc(m.name) + '</div>' : '';
+    var timeHtml = showTime ? '<div class="msg-time">' + fmtTime(m.createdAt) + '</div>' : '';
+    html += '<div class="msg ' + cls + '">' +
+      showAuthor +
+      '<div class="msg-body">' + esc(m.body || '') + '</div>' +
+      timeHtml +
+    '</div>';
+  }
+  box.innerHTML = html;
+
+  if (Settings.get('autoScroll') && (wasAtBottom || c.messages.length <= 1)) {
+    box.scrollTop = box.scrollHeight;
+  }
+}
+
+$('msg-input').addEventListener('input', function () {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+});
+
+$('msg-input').addEventListener('keydown', function (e) {
+  if (S.isMobile) return;
+  var sendOnEnter = Settings.get('enterToSend');
+  if (e.key === 'Enter' && !e.shiftKey && sendOnEnter) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+$('send-btn').onclick = sendMessage;
+
+function sendMessage() {
+  var input = $('msg-input');
+  var body = input.value.trim();
+  if (!body || !S.activeChat) return;
+
+  var chat = S.activeChat;
+  if (chat.isBot) return;
+
+  var peer = chat.peer;
+  if (!peer) return;
+
+  if (body.charAt(0) === '/') {
+    handleBotCommand(body);
+    input.value = '';
+    input.style.height = 'auto';
+    return;
+  }
+
+  input.value = '';
+  input.style.height = 'auto';
+
+  var payload = {
+    name: S.me.name,
+    avatar: S.me.avatar,
+    author: S.me.login,
+    body: body,
+    topicId: chat.id,
+    title: peer.name || peer.login,
+    userId: peer.id,
+    createdAt: new Date().toISOString()
+  };
+
+  var optimistic = Object.assign({}, payload, { id: 'tmp-' + Date.now() });
+  chat.messages.push(optimistic);
+  chat.last = optimistic;
+  S.msgsSig = '';
+  S.chatsSig = '';
+  renderMessages();
+  renderChats();
+
+  apiPost(API_MSG, payload).then(function (saved) {
+    var idx = chat.messages.findIndex(function (m) { return m.id === optimistic.id; });
+    if (idx >= 0 && saved && saved.id) chat.messages[idx] = saved;
+    chat.last = chat.messages[chat.messages.length - 1];
+    S.lastIds[chat.id] = String(chat.last.id);
+    loadChats(true);
+    setTimeout(function () { loadChats(true); }, 500);
+  }).catch(function (e) {
+    alert('Не удалось отправить: ' + e.message);
+    var idx = chat.messages.findIndex(function (m) { return m.id === optimistic.id; });
+    if (idx >= 0) chat.messages.splice(idx, 1);
+    S.msgsSig = '';
+    renderMessages();
+  });
+}
+
+function handleBotCommand(cmd) {
+  var chat = S.chats.find(function (c) { return c.id === BOT_TOPIC; });
+  if (!chat) return;
+
+  var cmdName = cmd.split(' ')[0].toLowerCase();
+
+  var userMsg = {
+    id: 'u-' + Date.now(),
+    name: S.me.name,
+    avatar: S.me.avatar,
+    author: S.me.login,
+    body: cmd,
+    topicId: BOT_TOPIC,
+    userId: S.me.id,
+    createdAt: new Date().toISOString()
+  };
+
+  chat.messages.push(userMsg);
+  S.msgsSig = '';
+  if (S.activeChat && S.activeChat.id === BOT_TOPIC) renderMessages();
+
+  var reply = '';
+  if (cmdName === '/help') {
+    reply = 'Доступные команды:\n' +
+      '/help - список команд\n' +
+      '/start - начать работу с ботом\n' +
+      '/my - показать ваши данные (ник, юзернейм, логин)';
+  } else if (cmdName === '/start') {
+    reply = 'Добро пожаловать в OldTG!\n\nЯ — официальный бот OldTG. Здесь будут появляться важные новости об аккаунте и работе мессенджера.\n\nВведите /help для списка команд.';
+  } else if (cmdName === '/my') {
+    reply = 'Ваш профиль:\n\n' +
+      'Имя: ' + (S.me.name || '—') + '\n' +
+      'Username: @' + (S.me.username || '—') + '\n' +
+      'Логин: ' + (S.me.login || '—') + '\n' +
+      'ID: ' + (S.me.id || '—');
+  } else {
+    reply = 'Неизвестная команда. Введите /help для списка доступных команд.';
+  }
+
+  var botMsg = {
+    id: 'b-' + Date.now(),
+    name: 'OldTG',
+    avatar: 'img/oldtg.png',
+    author: 'OldTG',
+    body: reply,
+    topicId: BOT_TOPIC,
+    userId: BOT_ID,
+    createdAt: new Date().toISOString(),
+    isBot: true
+  };
+
+  setTimeout(function () {
+    chat.messages.push(botMsg);
+    chat.last = botMsg;
+    S.msgsSig = '';
+    if (S.activeChat && S.activeChat.id === BOT_TOPIC) renderMessages();
+    renderChats();
+  }, 300);
+}
+
+function playNotification() {
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 800;
+    gain.gain.value = 0.05;
+    osc.start();
+    setTimeout(function () { osc.stop(); ctx.close(); }, 120);
+  } catch (e) {}
+}
+
+function openPeerCard(peer) {
+  var uname = peer.username || defaultUsername(peer.login);
+  var bg = document.createElement('div');
+  bg.className = 'profile-modal';
+  bg.innerHTML =
+    '<div class="profile-card">' +
+      '<div class="profile-cover">' +
+        '<div class="profile-close"></div>' +
+      '</div>' +
+      '<div class="profile-avatar-wrap">' +
+        '<img class="profile-avatar" src="' + esc(avatarOf(peer)) + '" alt="">' +
+      '</div>' +
+      '<div class="profile-names">' +
+        '<h2>' + esc(peer.name || peer.login) + '</h2>' +
+        '<div class="username">@' + esc(uname) + '</div>' +
+      '</div>' +
+      '<div class="profile-content" style="padding:20px;">' +
+        '<div style="text-align:center;color:var(--text-secondary);font-size:13px;">' +
+          'Аккаунт OldTG' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(bg);
+  bg.onclick = function (e) { if (e.target === bg) bg.remove(); };
+  bg.querySelector('.profile-close').onclick = function () { bg.remove(); };
+}
+
+function openProfileCard() {
+  var bg = document.createElement('div');
+  bg.className = 'profile-modal';
+  bg.innerHTML = buildProfileCardHTML();
+  document.body.appendChild(bg);
+
+  bg.onclick = function (e) { if (e.target === bg) bg.remove(); };
+  bg.querySelector('.profile-close').onclick = function () { bg.remove(); };
+  wireProfileTabs(bg);
+  wireProfileTab(bg);
+}
+
+function buildProfileCardHTML() {
+  var user = S.me;
+  var uname = user.username || defaultUsername(user.login);
+  return '' +
+    '<div class="profile-card">' +
+      '<div class="profile-cover">' +
+        '<div class="profile-close"></div>' +
+      '</div>' +
+      '<div class="profile-avatar-wrap">' +
+        '<img class="profile-avatar" src="' + esc(avatarOf(user)) + '" alt="">' +
+        '<div class="profile-online"><span class="dot"></span>в сети</div>' +
+      '</div>' +
+      '<div class="profile-names">' +
+        '<h2>' + esc(user.name || user.login) + '</h2>' +
+        '<div class="username">@' + esc(uname) + '</div>' +
+      '</div>' +
+      '<div class="profile-tabs">' +
+        '<div class="ptab is-active" data-ptab="profile">Профиль</div>' +
+        '<div class="ptab" data-ptab="about">About</div>' +
+      '</div>' +
+      '<div class="profile-content">' +
+        buildProfileTab(user) +
+      '</div>' +
+    '</div>';
+}
+
+function buildProfileTab(user) {
+  var uname = user.username || defaultUsername(user.login);
+  var since = user.createdAt ? fmtDateShort(user.createdAt) : '';
+  return '' +
+    '<div class="form-field">' +
+      '<label>Имя</label>' +
+      '<input id="pf-name" value="' + esc(user.name || '') + '">' +
+    '</div>' +
+    '<div class="form-field">' +
+      '<label>Username (без @)</label>' +
+      '<input id="pf-username" value="' + esc(uname) + '" autocapitalize="off">' +
+    '</div>' +
+    '<div class="form-field">' +
+      '<label>Ссылка на аватарку</label>' +
+      '<input id="pf-avatar" value="' + esc(avatarOf(user)) + '" autocapitalize="off">' +
+    '</div>' +
+    (since ? '<div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">В OldTG с ' + esc(since) + '</div>' : '') +
+    '<div class="form-error" id="pf-err"></div>' +
+    '<div class="profile-actions">' +
+      '<button class="ghost" id="pf-logout">Выйти</button>' +
+      '<button class="primary" id="pf-save">Сохранить</button>' +
+    '</div>';
+}
+
+function buildAboutTab() {
+  return '' +
+    '<div class="about-block">' +
+      '<div class="about-logo">' +
+        '<img src="img/oldtg.png" alt="" onerror="this.style.display=\'none\'">' +
+      '</div>' +
+      '<div class="app-name">OldTG ver ' + esc(APP_VERSION) + '</div>' +
+      '<div class="app-ver">Telegram-клиент в старом стиле</div>' +
+      '<div class="app-author">By ' + esc(APP_AUTHOR) + '</div>' +
+      '<div class="about-copy">' +
+        'OldTG ' + new Date().getFullYear() + '<br>' +
+        'Некоммерческий учебный проект' +
+      '</div>' +
+    '</div>';
+}
+
+function wireProfileTabs(bg) {
+  bg.querySelectorAll('.ptab').forEach(function (t) {
+    t.onclick = function () {
+      bg.querySelectorAll('.ptab').forEach(function (x) { x.classList.remove('is-active'); });
+      t.classList.add('is-active');
+      var tab = t.dataset.ptab;
+      if (tab === 'profile') {
+        bg.querySelector('.profile-content').innerHTML = buildProfileTab(S.me);
+        wireProfileTab(bg);
+      } else {
+        bg.querySelector('.profile-content').innerHTML = buildAboutTab();
+      }
+    };
+  });
+}
+
+function wireProfileTab(bg) {
+  var logoutBtn = bg.querySelector('#pf-logout');
+  if (logoutBtn) {
+    logoutBtn.onclick = function () { bg.remove(); logout(); };
+  }
+
+  var saveBtn = bg.querySelector('#pf-save');
+  if (saveBtn) {
+    saveBtn.onclick = function () {
+      var err = bg.querySelector('#pf-err');
+      var name = bg.querySelector('#pf-name').value.trim();
+      var username = normalizeUsername(bg.querySelector('#pf-username').value);
+      var avatar = bg.querySelector('#pf-avatar').value.trim();
+
+      err.textContent = '';
+      if (!name) { err.textContent = 'Введите имя'; return; }
+      if (!username) { err.textContent = 'Введите username'; return; }
+      if (!/^[a-z0-9_]{3,20}$/.test(username)) {
+        err.textContent = 'Username: 3-20, латиница, цифры, _';
+        return;
+      }
+
+      var taken = S.allUsers.find(function (u) {
+        return String(u.id) !== String(S.me.id)
+          && normalizeUsername(u.username) === username;
+      });
+      if (taken) { err.textContent = '@' + username + ' уже занят'; return; }
+
+      var orig = S.allUsers.find(function (u) { return String(u.id) === String(S.me.id); });
+      var updated = {
+        name: name,
+        username: username,
+        avatar: avatar || S.me.avatar,
+        login: S.me.login,
+        password: orig ? orig.password : btoa(''),
+        createdAt: orig ? orig.createdAt : new Date().toISOString()
+      };
+
+      apiPut(API_ACC + '/' + S.me.id, updated).then(function () {
+        S.me.name = name;
+        S.me.username = username;
+        S.me.avatar = avatar || S.me.avatar;
+        try { localStorage.setItem('oldtg_user', JSON.stringify(S.me)); } catch (e) {}
+        refreshTopBar();
+        if (orig) {
+          orig.name = name;
+          orig.username = username;
+          orig.avatar = S.me.avatar;
+        }
+        S.chatsSig = '';
+        S.msgsSig = '';
+        S.peopleSig = '';
+        renderChats();
+        renderConvTop();
+        bg.remove();
+        openProfileCard();
+      }).catch(function (e) {
+        err.textContent = 'Ошибка: ' + e.message;
+      });
+    };
+  }
+}
+
+function openSettings() {
+  var bg = document.createElement('div');
+  bg.className = 'modal-bg settings-modal';
+  bg.innerHTML = buildSettingsHTML();
+  document.body.appendChild(bg);
+
+  bg.onclick = function (e) { if (e.target === bg) bg.remove(); };
+  bg.querySelector('.settings-close').onclick = function () { bg.remove(); };
+
+  wireSettings(bg);
+}
+
+function buildSettingsHTML() {
+  var st = Settings.all();
+  var themes = [
+    { id: 'dark', name: 'Тёмная' },
+    { id: 'light', name: 'Светлая' },
+    { id: 'blue', name: 'Синяя' }
+  ];
+
+  return '' +
+    '<div class="modal-box">' +
+      '<div class="settings-header">' +
+        '<h2>Настройки</h2>' +
+        '<div class="settings-close"></div>' +
+      '</div>' +
+      '<div class="settings-body">' +
+
+        '<div class="settings-section">' +
+          '<div class="settings-section-title">Внешний вид</div>' +
+          '<div class="settings-item no-hover" style="display:block;">' +
+            '<div class="settings-item-label" style="margin-bottom:8px;">Тема</div>' +
+            '<div class="theme-options">' +
+              themes.map(function (t) {
+                return '<div class="theme-swatch ' + (st.theme === t.id ? 'is-active' : '') + '" data-theme="' + t.id + '">' +
+                  '<div class="swatch-preview swatch-' + t.id + '">' +
+                    '<div class="sp-top"></div>' +
+                    '<div class="sp-body">' +
+                      '<div class="sp-msg sp-msg-in"></div>' +
+                      '<div class="sp-msg sp-msg-out"></div>' +
+                    '</div>' +
+                  '</div>' +
+                  '<div class="swatch-label">' + t.name + '</div>' +
+                '</div>';
+              }).join('') +
+            '</div>' +
+          '</div>' +
+          '<div class="settings-item no-hover">' +
+            '<div class="settings-item-label">Размер шрифта</div>' +
+            '<div class="slider-wrap">' +
+              '<input type="range" min="0" max="2" step="1" value="' +
+                (st.fontSize === 'small' ? 0 : st.fontSize === 'large' ? 2 : 1) +
+                '" id="set-font">' +
+              '<span class="slider-value" id="set-font-label">' +
+                (st.fontSize === 'small' ? 'Мелкий' : st.fontSize === 'large' ? 'Крупный' : 'Обычный') +
+              '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="settings-item no-hover">' +
+            '<div class="settings-item-label">Плотность списка</div>' +
+            '<div class="slider-wrap">' +
+              '<input type="range" min="0" max="2" step="1" value="' +
+                (st.density === 'compact' ? 0 : st.density === 'comfortable' ? 2 : 1) +
+                '" id="set-density">' +
+              '<span class="slider-value" id="set-density-label">' +
+                (st.density === 'compact' ? 'Компакт.' : st.density === 'comfortable' ? 'Простор.' : 'Обычный') +
+              '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="settings-item" data-toggle="chatBg">' +
+            '<div>' +
+              '<div class="settings-item-label">Обои чата</div>' +
+              '<div class="settings-item-desc">Фоновое изображение img/chat.jpg</div>' +
+            '</div>' +
+            '<label class="switch">' +
+              '<input type="checkbox" ' + (st.chatBg ? 'checked' : '') + '>' +
+              '<span class="switch-track"><span class="switch-thumb"></span></span>' +
+            '</label>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="settings-section">' +
+          '<div class="settings-section-title">Поведение</div>' +
+          '<div class="settings-item" data-toggle="enterToSend">' +
+            '<div>' +
+              '<div class="settings-item-label">Enter отправляет</div>' +
+              '<div class="settings-item-desc">Иначе Shift+Enter</div>' +
+            '</div>' +
+            '<label class="switch">' +
+              '<input type="checkbox" ' + (st.enterToSend ? 'checked' : '') + '>' +
+              '<span class="switch-track"><span class="switch-thumb"></span></span>' +
+            '</label>' +
+          '</div>' +
+          '<div class="settings-item" data-toggle="autoScroll">' +
+            '<div>' +
+              '<div class="settings-item-label">Автопрокрутка вниз</div>' +
+              '<div class="settings-item-desc">Когда приходит новое сообщение</div>' +
+            '</div>' +
+            '<label class="switch">' +
+              '<input type="checkbox" ' + (st.autoScroll ? 'checked' : '') + '>' +
+              '<span class="switch-track"><span class="switch-thumb"></span></span>' +
+            '</label>' +
+          '</div>' +
+          '<div class="settings-item" data-toggle="showTimestamps">' +
+            '<div>' +
+              '<div class="settings-item-label">Показывать время сообщений</div>' +
+            '</div>' +
+            '<label class="switch">' +
+              '<input type="checkbox" ' + (st.showTimestamps ? 'checked' : '') + '>' +
+              '<span class="switch-track"><span class="switch-thumb"></span></span>' +
+            '</label>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="settings-section">' +
+          '<div class="settings-section-title">Уведомления</div>' +
+          '<div class="settings-item" data-toggle="showUnreadBadge">' +
+            '<div>' +
+              '<div class="settings-item-label">Счётчик непрочитанных</div>' +
+              '<div class="settings-item-desc">Показывать на иконке чата</div>' +
+            '</div>' +
+            '<label class="switch">' +
+              '<input type="checkbox" ' + (st.showUnreadBadge ? 'checked' : '') + '>' +
+              '<span class="switch-track"><span class="switch-thumb"></span></span>' +
+            '</label>' +
+          '</div>' +
+          '<div class="settings-item" data-toggle="notificationsSound">' +
+            '<div>' +
+              '<div class="settings-item-label">Звук уведомлений</div>' +
+              '<div class="settings-item-desc">Тихий сигнал при новом сообщении</div>' +
+            '</div>' +
+            '<label class="switch">' +
+              '<input type="checkbox" ' + (st.notificationsSound ? 'checked' : '') + '>' +
+              '<span class="switch-track"><span class="switch-thumb"></span></span>' +
+            '</label>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="settings-section">' +
+          '<div class="settings-section-title">Инструменты</div>' +
+          '<div class="settings-item" id="open-dev-console">' +
+            '<div>' +
+              '<div class="settings-item-label">Dev Console</div>' +
+              '<div class="settings-item-desc">Командная строка OldTG</div>' +
+            '</div>' +
+            '<div class="settings-btn">Открыть</div>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="settings-section">' +
+          '<div class="settings-section-title">Данные</div>' +
+          '<div class="settings-item">' +
+            '<div>' +
+              '<div class="settings-item-label">Сбросить настройки</div>' +
+              '<div class="settings-item-desc">Вернуть всё по умолчанию</div>' +
+            '</div>' +
+            '<button class="settings-btn danger" id="set-reset">Сбросить</button>' +
+          '</div>' +
+          '<div class="settings-item">' +
+            '<div>' +
+              '<div class="settings-item-label">Выйти из аккаунта</div>' +
+              '<div class="settings-item-desc">' + esc(S.me.name) + '</div>' +
+            '</div>' +
+            '<button class="settings-btn danger" id="set-logout">Выйти</button>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="settings-section">' +
+          '<div class="settings-section-title">О приложении</div>' +
+          '<div style="padding:10px 0;font-size:13px;color:var(--text-secondary);line-height:1.6;">' +
+            'OldTG ver ' + esc(APP_VERSION) + '<br>' +
+            'By ' + esc(APP_AUTHOR) +
+          '</div>' +
+        '</div>' +
+
+      '</div>' +
+    '</div>';
+}
+
+function wireSettings(bg) {
+  bg.querySelectorAll('.theme-swatch').forEach(function (sw) {
+    sw.onclick = function () {
+      bg.querySelectorAll('.theme-swatch').forEach(function (s) { s.classList.remove('is-active'); });
+      sw.classList.add('is-active');
+      Settings.set('theme', sw.dataset.theme);
+    };
+  });
+
+  var fontSlider = bg.querySelector('#set-font');
+  if (fontSlider) {
+    fontSlider.oninput = function () {
+      var v = parseInt(this.value, 10);
+      var id = v === 0 ? 'small' : v === 2 ? 'large' : 'medium';
+      var label = v === 0 ? 'Мелкий' : v === 2 ? 'Крупный' : 'Обычный';
+      bg.querySelector('#set-font-label').textContent = label;
+      Settings.set('fontSize', id);
+      S.chatsSig = '';
+      S.msgsSig = '';
+      S.peopleSig = '';
+      renderChats();
+      if (S.activeChat) renderMessages();
+    };
+  }
+
+  var densSlider = bg.querySelector('#set-density');
+  if (densSlider) {
+    densSlider.oninput = function () {
+      var v = parseInt(this.value, 10);
+      var id = v === 0 ? 'compact' : v === 2 ? 'comfortable' : 'normal';
+      var label = v === 0 ? 'Компакт.' : v === 2 ? 'Простор.' : 'Обычный';
+      bg.querySelector('#set-density-label').textContent = label;
+      Settings.set('density', id);
+      S.chatsSig = '';
+      S.peopleSig = '';
+      renderChats();
+      if (S.tab === 'people') renderPeople();
+    };
+  }
+
+  bg.querySelectorAll('[data-toggle]').forEach(function (item) {
+    var key = item.dataset.toggle;
+    var input = item.querySelector('input[type="checkbox"]');
+    if (!input) return;
+    input.onchange = function () {
+      Settings.set(key, input.checked);
+      S.chatsSig = '';
+      S.msgsSig = '';
+      renderChats();
+      if (S.activeChat) renderMessages();
+    };
+  });
+
+  var resetBtn = bg.querySelector('#set-reset');
+  if (resetBtn) {
+    resetBtn.onclick = function () {
+      if (!confirm('Сбросить все настройки?')) return;
+      Settings.reset();
+      bg.remove();
+      openSettings();
+    };
+  }
+
+  var logoutBtn = bg.querySelector('#set-logout');
+  if (logoutBtn) {
+    logoutBtn.onclick = function () { bg.remove(); logout(); };
+  }
+
+  var devBtn = bg.querySelector('#open-dev-console');
+  if (devBtn) {
+    devBtn.onclick = function () {
+      openDevConsole();
+    };
+  }
+}
+
+$('menu-btn').onclick = function () {
+  if (S.me) {
+    openSettings();
+  } else {
+    if (S.isMobile) {
+      $('left-col').classList.remove('is-hidden');
+      $('right-col').classList.add('is-hidden');
+    } else {
+      $('left-col').classList.toggle('is-hidden');
+    }
+  }
+};
+
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState === 'visible' && S.me) {
+    loadChats(true);
+    loadUsers(true);
+    loadBot();
+    loadChannels();
+  }
+});
+
+applySettings();
+checkMobile();
+if (S.isMobile) {
+  $('right-col').classList.add('is-hidden');
+}
+
+window.addEventListener('hashchange', function () {
+  if (S.me) handleDeepLink();
+});
+</script>
+</body>
+</html>
